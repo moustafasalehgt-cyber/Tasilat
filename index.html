@@ -1,6 +1,9 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>تحصيلات العملاء</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
@@ -41,6 +44,7 @@
   color-scheme:dark}
 
 *{box-sizing:border-box}
+html,body{margin:0}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.6;direction:rtl}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--navy)}
@@ -54,7 +58,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .brand h1{font-family:var(--f-display);font-size:1.55rem;margin:0;line-height:1.2;letter-spacing:0}
 .brand h1 span{color:var(--gold)}
 .brand small{display:block;font-size:.8rem;opacity:.75;font-family:var(--f-body)}
-.sync{font-size:.78rem;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);white-space:nowrap}
+.sync{cursor:pointer;color:inherit;font-family:inherit;font-size:.78rem;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);white-space:nowrap}
 .sync.ok::before{content:"●";color:#5fd08e;margin-inline-end:6px}
 .sync.local::before{content:"●";color:#f0bf56;margin-inline-end:6px}
 nav.tabs{display:flex;gap:2px;overflow-x:auto;margin-top:12px;scrollbar-width:none}
@@ -182,14 +186,31 @@ details.rep[open] summary{border-bottom:1px solid var(--line)}
 
 .banner{padding:10px 14px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:.86rem;font-weight:600}
 .toolbar{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.lock{position:fixed;inset:0;z-index:50;background:var(--navy);display:flex;align-items:center;justify-content:center;padding:20px}
+.lockbox{background:var(--surface);border-radius:14px;padding:26px 22px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px}
+.lockbox h2{color:var(--fg)}
+.lockbox .gold-t{color:var(--gold)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+</head>
+<body>
+
+<div class="lock" id="lock" hidden>
+  <form class="lockbox" id="lockForm" autocomplete="off">
+    <h2>تحصيلات <span class="gold-t">العملاء</span></h2>
+    <p class="sub">دخّل الكود عشان تفتح البيانات.</p>
+    <div class="field" id="apiField"><label for="lk-api">رابط Apps Script</label><input id="lk-api" dir="ltr" placeholder="https://script.google.com/macros/s/.../exec"></div>
+    <div class="field"><label for="lk-code">الكود</label><input id="lk-code" type="password" inputmode="numeric" required></div>
+    <span class="msg err" id="lockMsg"></span>
+    <button class="btn primary" type="submit">دخول</button>
+  </form>
+</div>
 
 <header>
   <div class="hwrap">
     <div class="brand">
       <h1>تحصيلات <span>العملاء</span><small>محفظتي · بنك الشركة · محفظة عم صبري ← أ/ ندى ← الحساب</small></h1>
-      <span id="sync" class="sync">جاري الاتصال…</span>
+      <button type="button" id="sync" class="sync" title="دوس عشان تحدّث البيانات">جاري الاتصال…</button>
     </div>
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" data-tab="entry" aria-selected="true">➕ حركة جديدة</button>
@@ -202,7 +223,7 @@ details.rep[open] summary{border-bottom:1px solid var(--line)}
 </header>
 
 <main>
-  <div id="localBanner" class="banner" hidden>الصفحة مش متصلة بقاعدة البيانات دلوقتي، فأي حركة هتسجلها هتضيع لما تقفل الصفحة. افتحها من رابطها على Claude وانت عامل تسجيل دخول.</div>
+  <div id="localBanner" class="banner" hidden></div>
 
   <!-- ENTRY -->
   <section class="panel" id="p-entry">
@@ -332,6 +353,12 @@ details.rep[open] summary{border-bottom:1px solid var(--line)}
 <datalist id="dl-reps"></datalist>
 
 <script>
+/* ============ الإعداد ============
+   حط رابط الـ Web App بتاع Apps Script بين العلامتين.
+   لو سبته فاضي، الصفحة هتطلب الرابط أول مرة وتحفظه على الجهاز. */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzyaHnakm10LjPnQeuJKpyhtmYPf96xcTYRhRYNsavWzIfj4WU6_GMW_5cHL_07h4qacA/exec";
+</script>
+<script>
 (function(){
 "use strict";
 const CH = {
@@ -342,7 +369,7 @@ const CH = {
 const DEFAULT_REPS = ["الصعيد","هيثم","عماد","صبرى","الرشيدى","مرسى هاشم","باسم","محمد نبيل","كبار عملاء"];
 
 const state = {tx:[], tab:"entry", editing:null, f:{from:"",to:"",rep:"",q:""}, sort:{customers:{k:"total",d:-1}, log:{k:"date",d:-1}}};
-let db=null, col=null, downloads=null, live=false;
+let live=false;
 const $ = s => document.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 const fmt = n => (Math.round((+n||0)*100)/100).toLocaleString("en-US",{maximumFractionDigits:2});
@@ -352,37 +379,56 @@ const fdate = s => s ? s.split("-").reverse().join("/") : "";
 const days = s => s ? Math.floor((Date.now()-new Date(s+"T00:00:00").getTime())/86400000) : 0;
 const norm = s => String(s||"").trim().replace(/\s+/g," ");
 
-/* ---------- storage ---------- */
+/* ---------- storage (Google Sheet) ---------- */
+let API = SCRIPT_URL; try{ API = API || localStorage.getItem("tahsil-api") || ""; }catch(_){}
+let TOKEN = ""; try{ TOKEN = localStorage.getItem("tahsil-token") || ""; }catch(_){}
+const NUMS=["amount","rate","commission","net","stage","createdAt"];
 function setSync(ok,txt){ const el=$("#sync"); el.className="sync "+(ok?"ok":"local"); el.textContent=txt; }
-async function boot(){
-  render();
-  try{
-    db = window.claude && window.claude.use ? await window.claude.use("db") : null;
-    downloads = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
-  }catch(e){ db=null; }
-  if(!db){ setSync(false,"مش متصل — مش بيتحفظ"); $("#localBanner").hidden=false; return; }
-  col = db.collection("tx");
-  col.onSnapshot(snap=>{
-    live=true;
-    state.tx = snap.docs.map(d=>Object.assign({id:d.id}, d.data()));
-    setSync(true, snap.metadata.hasPendingWrites ? "جاري الحفظ…" : "محفوظ أونلاين");
-    render();
-  }, err=>{ setSync(false,"انقطع الاتصال — اعمل ريفرش"); });
+function normRow(r){ const o=Object.assign({},r); NUMS.forEach(k=>o[k]=+o[k]||0); o.id=String(o.id);
+  ["date","s1At","depAt","customer","rep","channel","ref","note"].forEach(k=>o[k]=String(o[k]??"")); return o; }
+function banner(t){ const b=$("#localBanner"); b.textContent=t||""; b.hidden=!t; }
+async function load(){
+  setSync(true,"جاري التحميل…");
+  const r=await fetch(API+(API.includes("?")?"&":"?")+"token="+encodeURIComponent(TOKEN)+"&t="+Date.now());
+  const j=await r.json(); if(!j.ok) throw new Error(j.error||"err");
+  state.tx=j.rows.map(normRow).filter(t=>t.id&&CH[t.channel]);
+  live=true; banner(""); setSync(true,"متزامن مع الشيت"); render();
 }
-async function saveTx(id, obj){
-  if(col){
-    const ref = id ? col.doc(id) : col.doc();
-    await ref.set(obj);
-  } else {
-    if(id){ const i=state.tx.findIndex(t=>t.id===id); if(i>=0) state.tx[i]=Object.assign({id},obj); }
-    else state.tx.push(Object.assign({id:"L"+Date.now()},obj));
-    render();
-  }
+async function post(body){
+  const r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({token:TOKEN},body))});
+  const j=await r.json(); if(!j.ok) throw new Error(j.error||"err");
+}
+async function saveTx(id,obj){
+  const nid=id||("T"+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+  const row=Object.assign({id:nid},obj);
+  const i=state.tx.findIndex(t=>t.id===nid); if(i>=0) state.tx[i]=row; else state.tx.push(row);
+  render(); setSync(true,"جاري الحفظ…");
+  try{ await post({action:"upsert",id:nid,row}); setSync(true,"متزامن مع الشيت"); }
+  catch(e){ setSync(false,"الحفظ فشل"); banner("الحركة ما اتحفظتش على الشيت. اتأكد من النت وجرّب تاني."); load().catch(()=>{}); throw e; }
 }
 async function delTx(id){
-  if(col) await col.doc(id).delete();
-  else { state.tx=state.tx.filter(t=>t.id!==id); render(); }
+  state.tx=state.tx.filter(t=>t.id!==id); render();
+  try{ await post({action:"delete",id}); setSync(true,"متزامن مع الشيت"); }
+  catch(e){ setSync(false,"المسح فشل"); banner("المسح ما اتنفذش على الشيت. جرّب تاني."); load().catch(()=>{}); throw e; }
 }
+function showLock(msg){ $("#lock").hidden=false; $("#apiField").hidden=!!SCRIPT_URL; $("#lk-api").value=API; $("#lockMsg").textContent=msg||""; setTimeout(()=>$("#lk-code").focus(),50); }
+$("#lockForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(!SCRIPT_URL) API=$("#lk-api").value.trim();
+  TOKEN=$("#lk-code").value.trim();
+  if(!API){ $("#lockMsg").textContent="حط رابط Apps Script الأول."; return; }
+  $("#lockMsg").textContent="جاري التحقق…";
+  try{ await load(); try{ localStorage.setItem("tahsil-token",TOKEN); if(!SCRIPT_URL) localStorage.setItem("tahsil-api",API); }catch(_){}
+    $("#lock").hidden=true; }
+  catch(err){ $("#lockMsg").textContent = err.message==="token" ? "الكود غلط." : "مش قادر أوصل للشيت. اتأكد من الرابط وإن الـ Web App متاح لـ Anyone."; }
+});
+async function boot(){
+  if(!API||!TOKEN){ showLock(); return; }
+  try{ await load(); }
+  catch(e){ if(e.message==="token") showLock("الكود اتغيّر، دخّله تاني."); else { setSync(false,"مش متصل"); banner("مش قادر أوصل للشيت دلوقتي. دوس على الزرار اللي فوق عشان تحاول تاني."); } }
+}
+$("#sync").addEventListener("click",()=>{ if(API&&TOKEN) load().catch(()=>{ setSync(false,"مش متصل"); }); });
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&live) load().catch(()=>{}); });
 
 /* ---------- derived ---------- */
 function customerRepMap(){
@@ -626,10 +672,9 @@ async function exportCSV(kind){
   else { rows=[["التاريخ","العميل","المندوب","الطريقة","المبلغ","العمولة","الصافي","الحالة","تاريخ الإيداع","مرجع","ملاحظات"], ...[...list].sort((a,b)=>a.date<b.date?-1:1).map(t=>[t.date,t.customer,t.rep,CH[t.channel].name,t.amount,t.commission,t.net,CH[t.channel].stages[t.stage],t.depAt||"",t.ref||"",t.note||""])]; }
   const csv="﻿"+rows.map(r=>r.map(v=>{ const s=String(v??""); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(",")).join("\r\n");
   const name={customers:"تقرير_العملاء",reps:"تقرير_المناديب",log:"سجل_التحصيلات"}[kind]+"_"+today()+".csv";
-  if(!downloads){ alertMsg("التصدير مش متاح في العرض ده."); return; }
-  try{ await downloads.save({filename:name, data:new Blob([csv],{type:"text/csv;charset=utf-8"})}); }catch(e){ if(e&&e.code==="unavailable") alertMsg("التصدير مش متاح في العرض ده."); }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); a.download=name;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
 }
-function alertMsg(t){ const m=$("#formMsg"); setSync(live, t); setTimeout(()=>setSync(live, live?"محفوظ أونلاين":"مش متصل — مش بيتحفظ"),3000); }
 
 /* ---------- start ---------- */
 resetForm();
@@ -638,5 +683,5 @@ switchTab(startTab);
 boot();
 })();
 </script>
-
-</body></html>
+</body>
+</html>
